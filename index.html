@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>万通社区自习室座位查询系统</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: auto;
+      padding: 30px;
+      background: linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)),
+                  url('1.jpg') center/cover no-repeat fixed;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      font-size: 36px;
+      color: #2c3e50;
+      margin-bottom: 40px;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    input, button, select {
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    input:focus, button:focus, select:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    button {
+      cursor: pointer;
+      margin-left: 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      font-size: 16px;
+    }
+    .section {
+      margin-top: 40px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .seat-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .seat-box {
+      width: 60px;
+      height: 60px;
+      line-height: 60px;
+      text-align: center;
+      font-weight: bold;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      color: #000;
+    }
+    .seat-box.occupied {
+      background-color: #f1c40f;
+      color: #000;
+    }
+    table.monthly-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .monthly-table th, .monthly-table td {
+      border: 1px solid #ccc;
+      text-align: center;
+      padding: 5px;
+      font-size: 12px;
+    }
+    .monthly-table th {
+      background: #f8f8f8;
+      position: sticky;
+      top: 0;
+    }
+    .highlight {
+      background-color: #f1c40f;
+    }
+  </style>
+</head>
+<body>
+  <h1>万通社区自习室座位查询系统</h1>
+
+  <div class="section">
+    <label for="startDate">按日期范围查空位：</label>
+    <input type="date" id="startDate"> 至 
+    <input type="date" id="endDate">
+    <button onclick="checkAvailableSeatsRange()">查询空座</button>
+    <div id="availableSeatsResult" class="results"></div>
+    <div class="seat-grid" id="seatGrid"></div>
+  </div>
+
+  <div class="section">
+    <label for="seatInput">按座位号查预定时间段：</label>
+    <input type="number" id="seatInput" min="1" max="82">
+    <button onclick="checkSeatBooking()">查询预定</button>
+    <div id="seatBookingResult" class="results"></div>
+  </div>
+
+  <div class="section">
+    <label for="monthSelect">按月份查看所有座位预定情况：</label>
+    <select id="monthSelect">
+      <option value="">选择月份</option>
+<option value="2025-07">2025年7月</option>
+<option value="2025-08">2025年8月</option>
+<option value="2025-09">2025年9月</option>
+<option value="2025-10">2025年10月</option>
+<option value="2025-11">2025年11月</option>
+<option value="2025-12">2025年12月</option>
+
+    </select>
+    <button onclick="renderMonthlyView()">查看</button>
+    <div id="monthlyTableContainer"></div>
+  </div>
+
+  <script>
+    const bookingData = {
+
+      "1": [{ "start": "2025-07-29", "end": "2025-08-31" }],
+      "2": [{ "start": "2025-07-03", "end": "2025-10-03" }],
+      "3": [{ "start": "2025-07-09", "end": "2025-07-31" }],
+
+      "5": [{ "start": "2025-07-10", "end": "2025-10-07" }],
+      "6": [{ "start": "2025-07-10", "end": "2025-09-01" }],
+      "7": [{ "start": "2025-07-10", "end": "2025-08-29" }],
+      "8": [{ "start": "2025-07-10", "end": "2025-08-08" }],
+      "9": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+      "10": [{ "start": "2025-07-16", "end": "2025-09-05" }],
+      "11": [{ "start": "2025-07-10", "end": "2025-08-08" }],
+      "12": [{ "start": "2025-07-10", "end": "2025-12-23" }],
+      "13": [{ "start": "2025-07-10", "end": "2025-07-23" }],
+
+      "15": [{ "start": "2025-07-15", "end": "2025-07-20" }],
+      "16": [{ "start": "2025-07-10", "end": "2025-10-07" }],
+      "17": [{ "start": "2025-07-10", "end": "2025-07-10" }],
+      "18": [{ "start": "2025-07-10", "end": "2025-09-24" }],
+      "19": [{ "start": "2025-07-10", "end": "2025-08-07" }],
+      "20": [{ "start": "2025-07-10", "end": "2025-12-23" }],
+      "21": [{ "start": "2025-07-10", "end": "2025-08-12" }],
+      "22": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+      "23": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+
+      "25": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+      "26": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "27": [{ "start": "2025-07-10", "end": "2025-08-17" }],
+      "28": [{ "start": "2025-07-09", "end": "2025-07-09" }],
+      "29": [{ "start": "2025-07-10", "end": "2025-09-30" }],
+      "30": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "31": [{ "start": "2025-07-10", "end": "2025-08-22" }],
+      "32": [{ "start": "2025-07-10", "end": "2025-12-23" }],
+      "33": [{ "start": "2025-07-10", "end": "2025-09-05" }],
+
+      "35": [{ "start": "2025-07-10", "end": "2025-09-30" }],
+      "36": [{ "start": "2025-07-10", "end": "2025-08-08" }],
+      "37": [{ "start": "2025-07-10", "end": "2025-08-11" }],
+      "38": [{ "start": "2025-07-10", "end": "2025-12-31"}],
+      "39": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+
+      "50": [{ "start": "2025-07-10", "end": "2025-09-30" }],
+      "51": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+      "52": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+      "53": [{ "start": "2025-07-10", "end": "2025-08-24" }],
+
+      "55": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "56": [{ "start": "2025-07-10", "end": "2025-09-30" }],
+      "57": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "58": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+      "59": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "60": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+      "61": [{ "start": "2025-07-10", "end": "2025-12-23" }],
+      "62": [{ "start": "2025-07-10", "end": "2025-07-13" }],
+      "63": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+
+      "65": [{ "start": "2025-07-10", "end": "2025-12-31" }],
+      "66": [{ "start": "2025-07-10", "end": "2025-07-20" }],
+      "67": [{ "start": "2025-07-10", "end": "2025-08-10" }],
+      "68": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "69": [{"start": "2025-07-10", "end": "2025-07-31" }],
+      "70": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "71": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+      "72": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "73": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+
+      "75": [{ "start": "2025-07-10", "end": "2025-08-03" }],
+      "76": [{ "start": "2025-07-10", "end": "2025-08-08" }],
+      "77": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+      "78": [{ "start": "2025-07-10", "end": "2025-07-31" }],
+      "79": [{ "start": "2025-07-10", "end": "2025-08-04" }],
+      "80": [{ "start": "2025-07-10", "end": "2025-08-03" }],
+      "81": [{ "start": "2025-07-10", "end": "2025-08-31" }],
+      "82": [{ "start": "2025-07-10", "end": "2025-12-31" }]
+    };
+
+    function datesOverlap(start1, end1, start2, end2) {
+      return !(end1 < start2 || start1 > end2);
+    }
+
+    function checkAvailableSeatsRange() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      if (!startDate || !endDate) return alert("请选择起止日期");
+      if (endDate < startDate) return alert("结束日期不能早于开始日期");
+
+      const availableSeats = [];
+      const seatGrid = document.getElementById("seatGrid");
+      seatGrid.innerHTML = '';
+
+      for (let seat in bookingData) {
+        const reservations = bookingData[seat];
+        const hasConflict = reservations.some(r => datesOverlap(startDate, endDate, r.start, r.end));
+        if (!hasConflict) availableSeats.push(seat);
+
+        const seatBox = document.createElement("div");
+        seatBox.classList.add("seat-box");
+        if (hasConflict) seatBox.classList.add("occupied");
+        seatBox.textContent = seat;
+        seatGrid.appendChild(seatBox);
+      }
+
+      const resultEl = document.getElementById("availableSeatsResult");
+      if (availableSeats.length) {
+        resultEl.innerHTML = `空座位号（${startDate} 至 ${endDate}）：<strong>${availableSeats.join(', ')}</strong>`;
+      } else {
+        resultEl.innerHTML = "所选日期范围内无空余座位。";
+      }
+    }
+
+    function checkSeatBooking() {
+      const seat = document.getElementById("seatInput").value;
+      if (!seat || !bookingData[seat]) {
+        document.getElementById("seatBookingResult").innerText = "请输入有效的座位号（1-82）";
+        return;
+      }
+
+      const bookings = bookingData[seat];
+      if (bookings.length === 0) {
+        document.getElementById("seatBookingResult").innerText = "该座位暂无预定记录。";
+      } else {
+        document.getElementById("seatBookingResult").innerHTML =
+          bookings.map(b => `预定时间：${b.start} 至 ${b.end}`).join("<br>");
+      }
+    }
+
+function renderMonthlyView() {
+  const selectedMonth = document.getElementById("monthSelect").value;
+  const container = document.getElementById("monthlyTableContainer");
+  container.innerHTML = '';
+  if (!selectedMonth) return;
+
+  const [year, month] = selectedMonth.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  const table = document.createElement("table");
+  table.className = "monthly-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  headRow.innerHTML = `<th>座位号</th>` + [...Array(daysInMonth)].map((_, i) => `<th>${month}.${i + 1}</th>`).join('');
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (let seat in bookingData) {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${seat}</td>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const reserved = bookingData[seat].some(r => dateStr >= r.start && dateStr <= r.end);
+      const cell = `<td class="${reserved ? 'highlight' : ''}">${month}.${d}</td>`;
+      row.innerHTML += cell;
+    }
+
+    tbody.appendChild(row);
+  }
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+  </script>
+</body>
+</html>
